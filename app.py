@@ -1,46 +1,42 @@
 import streamlit as st
-
 import pandas as pd
+import plotly.express as px
 import numpy as np
 
-st.title("Full comparisons")
-st.write(
-    "This page shows the full comparisons between the PUF-PE 21, TD 23 and SOI statistics."
+st.title("2015 PUF replication of SOI targets")
+
+st.write("This dashboard shows replication accuracy of the 2015 IRS SOI statistics from the 2015 PUF, in order to assess the 'best-possible' accuracy that PUF-deriving tax microdata can achieve.")
+
+df = pd.read_csv("comparisons_puf.csv.gz")
+
+st.dataframe(df)
+
+st.subheader("Error quantiles")
+
+fig = px.bar(
+    df["Relative absolute difference"].quantile(np.linspace(0, 1, 100)),
+    title="Relative absolute difference quantiles between PUF and SOI",
+    labels={"index": "Percentile", "value": "Relative absolute difference"},
+    log_y=True,
+).update_layout(
+    yaxis_tickformat=".2%",
+    showlegend=False,
 )
-comparison_df = pd.read_csv("comparisons.csv.gz")
 
-st.dataframe(comparison_df.dropna())
+st.plotly_chart(fig)
 
-# ST metrics for: number of metrics with relative absolute error > 0.01, > 0.1, > 0.1
+is_large = (df.Count & (df["Value (SOI)"] > 10e6)) | (~df.Count & (df["Value (SOI)"] > 10e9))
 
-_col1, _col2 = st.columns(2)
-with _col1:
-    st.metric(
-        "Number of SOI statistics accounted for",
-        comparison_df[~comparison_df["PUF-PE 21"].isna()].shape[0],
-    )
+fig_2 = px.bar(
+    df[is_large]["Relative absolute difference"].quantile(np.linspace(0, 1, 100)),
+    title="Relative absolute difference quantiles between PUF and SOI on large targets",
+    labels={"index": "Percentile", "value": "Relative absolute difference"},
+    log_y=True,
+).update_layout(
+    yaxis_tickformat=".2%",
+    showlegend=False,
+)
 
-with _col2:
-    st.metric(
-        "Number of SOI statistics not accounted for",
-        comparison_df[comparison_df["PUF-PE 21"].isna()].shape[0],
-    )
+st.write("Large is defined as a count greater than 10 million or a value greater than 10 billion.")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric(
-        "Absolute error < 5bn",
-        comparison_df[comparison_df["PUF-PE 21 - SOI"].abs() < 5].shape[0],
-    )
-
-with col2:
-    st.metric(
-        "Absolute error < 20bn",
-        comparison_df[comparison_df["PUF-PE 21 - SOI"].abs() < 20].shape[0],
-    )
-
-with col3:
-    st.metric(
-        "Absolute error > 20bn",
-        comparison_df[comparison_df["PUF-PE 21 - SOI"].abs() > 20].shape[0],
-    )
+st.plotly_chart(fig_2)
